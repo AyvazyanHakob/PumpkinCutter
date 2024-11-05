@@ -1,179 +1,9 @@
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <array>
 #include <cmath>
 #include <algorithm>
-
-template<typename T>
-T NULLREFERENCE;
-
-typedef std::array<int, 3> Triangle;
-
-const double PI = 3.14159265358979323846;
-const double eps = 1e-10;
-
-template<class T>
-struct Point {
-    T x, y, z;
-};
-template<class T>
-Point<T> operator+(const Point<T>& a, const Point<T>& b) {
-    return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
-template<class T>
-Point<T> operator-(const Point<T>& a, const Point<T>& b) {
-    return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
-template<class T>
-Point<T> operator*(double k, const Point<T>& a) {
-    return {a.x*k, a.y*k, a.z*k};
-}
-template<class T>
-Point<T> operator^(const Point<T>& a, const Point<T>& b) {
-    return {a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};
-}
-template<class T>
-T operator*(const Point<T>& a, const Point<T>& b) {
-    return a.x*b.x + a.y*b.y + a.z*b.z;
-}
-
-
-template<class T>
-double length(const Point<T>& a) {
-    return sqrt(a*a);
-}
-template<class T>
-Point<T> normalized(const Point<T>& a) {
-    return (1/length(a)) * a;
-}
-template<class T>
-void normalize(Point<T>& a) {
-    a = (1/length(a)) * a;
-}
-template<class T>
-Point<T> perp(Point<T>& a) {
-    Point<T> ret = (a ^ Point<T>{1, 0, 0});
-    if (ret == Point<T>{0, 0, 0}) ret = (a ^ Point<T>{0, 1, 0});
-    return ret;
-}
-
-template<class T>
-bool operator==(const Point<T>& a, const Point<T>& b) {
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-struct Mesh {
-    std::vector<Point<double>> vertices;
-    std::vector<Triangle> polygons;
-};
-
-bool readMesh(const std::string& filename, Mesh& mesh)
-{
-    mesh.vertices.clear();
-    mesh.polygons.clear();
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open input file" << std::endl;
-        return false;
-    }
-    std::string cur;
-    while (file >> cur) {
-        if (cur == "v") {
-            Point<double> point;
-            file >> point.x >> point.y >> point.z;
-            mesh.vertices.push_back(point);
-        } else if (cur == "f") {
-            Triangle triangle;
-            file >> triangle[0] >> triangle[1] >> triangle[2];
-            triangle[0]--;
-            triangle[1]--;
-            triangle[2]--;
-            mesh.polygons.push_back(triangle);
-        }
-    }
-    return true;
-}
-bool writeMesh(const std::string& filename, const Mesh& mesh)
-{
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open input file" << std::endl;
-        return false;
-    }
-    for (Point p : mesh.vertices) {
-        file << "v " << p.x << " " << p.y << " " << p.z << std::endl;
-    }
-    for (Triangle p : mesh.polygons) {
-        file << "f " << p[0]+1 << " " << p[1]+1 << " " << p[2]+1 << std::endl;
-    }
-    return true;
-}
-
-void drawLine(Mesh& a, Point<double> v1, Point<double> v2)
-{
-    int ind = (int)a.vertices.size();
-    a.vertices.push_back(v1);
-    a.vertices.push_back(v2);
-    v1.x += 0.9;
-    v1.z += 0.9;
-    a.vertices.push_back(v1);
-    a.polygons.push_back({ind, ind+1, ind+2});
-}
-void drawPoint(Mesh& a, Point<double> v)
-{
-    int ind = (int)a.vertices.size();
-    double sz = 0.2;
-    a.vertices.push_back({v.x-sz, v.y-sz, v.z});
-    a.vertices.push_back({v.x+sz, v.y-sz, v.z});
-    a.vertices.push_back({v.x, v.y+sz, v.z});
-    a.vertices.push_back({v.x, v.y, v.z+sz});
-    a.polygons.push_back({ind+0, ind+1, ind+2});
-    a.polygons.push_back({ind+0, ind+1, ind+3});
-    a.polygons.push_back({ind+1, ind+2, ind+3});
-    a.polygons.push_back({ind+2, ind+0, ind+3});
-}
-
-Mesh combine(const Mesh& a, const Mesh& b)
-{
-    Mesh c = a;
-    for (Point p : b.vertices) {
-        c.vertices.push_back(p);
-    }
-    for (Triangle p : b.polygons) {
-        p[0] += (int)a.vertices.size();
-        p[1] += (int)a.vertices.size();
-        p[2] += (int)a.vertices.size();
-        c.polygons.push_back(p);
-    }
-    return c;
-}
-
-// intersection of plane (TA, TB, TC) and line (U, V);
-bool intersect  (Point<double> TA, Point<double> TB, Point<double> TC,
-            Point<double> U, Point<double> V,
-            Point<double>& ret, double& x)
-{
-    Point<double> O = TA;
-    Point<double> n = (TB-TA) ^ (TC-TA);
-    if (V*n == 0) return false;
-    x = ((O*n - U*n) / (V*n));
-    ret = U + x*V;
-    return true;
-}
-
-bool liesOnAngle(Point<double> A, Point<double> B, Point<double> C) {
-    return (A^C) * (B^C) <= 0;
-}
-bool liesOnTriangle(Point<double> A, Point<double> B, Point<double> C, Point<double> O) {
-    return liesOnAngle(B-A, C-A, O) && liesOnAngle(A-C, B-C, O);
-}
-int sideRelativePlane(Point<double> A, Point<double> B, Point<double> C, Point<double> O) {
-    double side = (O-A)*((B-A)^(C-A));
-    if (side < -eps) return -1;
-    if (side > +eps) return +1;
-    return 0;
-}
+#include "utils.h"
 
 std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a) {
     int n = (int)a.size();
@@ -204,8 +34,6 @@ std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a) {
     }
     return ret;
 }
-
-
 
 void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC,
                                 std::vector<int>& intersectionPoints = NULLREFERENCE<std::vector<int>>) {
@@ -330,45 +158,35 @@ void isolateByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<d
 
 Mesh visual;
 
-struct NODE {
-    int val;
-    NODE* next;
-    NODE* prev;
-};
 std::vector<Triangle> triangulize(std::vector<int> polygon, const std::vector<Point<double>>& points, Point<double> planeNormal) {
-    NODE* start = new NODE{polygon[0], nullptr, nullptr};
-    NODE* cur = start;
-    for (int i = 0; i+1 < polygon.size(); i++) {
-        cur->next = new NODE{polygon[(i+1)%(int)polygon.size()], nullptr, cur};
-        cur = cur->next;
+    Point<double> planeOrigin = points[polygon[0]];
+    std::vector<Point<double>> polygonPoints(polygon.size()); // 2d
+    for (int i = 0; i < polygon.size(); i++) {
+        polygonPoints[i] = points[polygon[i]] - planeOrigin;
     }
-    cur->next = start;
-    start->prev = cur;
-
-    std::vector<Triangle> ret;
-    for (int i = 0; i < 10000; i++) {
-        int p1 = cur->prev->val;
-        int p2 = cur->val;
-        int p3 = cur->next->val;
-        Point<double> A = points[cur->prev->val];
-        Point<double> B = points[cur->val];
-        Point<double> C = points[cur->next->val];
-        if (sideRelativePlane(A-planeNormal, B-planeNormal, C-planeNormal, planeNormal) < 0) {
-            ret.push_back({p1, p2, p3});
-
-            cur->prev->next = cur->next;
-            cur->next->prev = cur->prev;
-
-            NODE* tmp = cur->next;
-            delete cur;
-            cur = tmp;
-        } else cur = cur->next;
-
-        srand(time(0));
-        int c = rand()%20000;
-        for (int i = 0; i < c; i++) cur = cur->next;
+    normalize(planeNormal);
+    Point<double> base1 = normalized(perp(planeNormal));
+    Point<double> base2 = normalized(base1^planeNormal);
+    for (auto& point : polygonPoints)  {
+        point = {base1 * point, base2 *  point, 14.88/*DO NOT FORGET TO CHANGE BEFORE PRODUCTION*/};
     }
-    return ret;
+    auto isInCircumcircle = [](Point<double> A, Point<double> B, Point<double> C, Point<double> D) {
+        std::array<std::array<double, 3>, 3> matrix;
+        double difx, dify;
+        difx = A.x - D.x;
+        dify = A.y - D.y;
+        matrix[0] = {difx, dify, difx*difx + dify*dify};
+        difx = B.x - D.x;
+        dify = B.y - D.y;
+        matrix[1] = {difx, dify, difx*difx + dify*dify};
+        difx = C.x - D.x;
+        dify = C.y - D.y;
+        matrix[2] = {difx, dify, difx*difx + dify*dify};
+        double determinant = matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+                             - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+                             + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
+        return determinant > 0;
+    };
 }
 
 void cutByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC, int tp) {
@@ -423,7 +241,7 @@ int main() {
         Point<double> v = surface[(i+1)%partcnt];
         cutByPlane(b, u, v, origin, i);
 
-        //break;
+        break;
         if (i == 20) break;
         continue;
         Mesh plane;
