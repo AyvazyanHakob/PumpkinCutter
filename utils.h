@@ -2,6 +2,8 @@
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <vector>
+#include <iostream>
 
 template<typename T>
 T NULLREFERENCE;
@@ -12,9 +14,49 @@ extern const double PI = 3.14159265358979323846;
 extern const double eps = 1e-6;
 
 template<class T>
+struct Point2 {
+    T x, y;
+};
+template<class T>
+bool operator==(const Point2<T>& a, const Point2<T>& b) {
+    return a.x == b.x && a.y == b.y;
+}
+template<class T>
+Point2<T> operator+(const Point2<T>& a, const Point2<T>& b) {
+    return {a.x + b.x, a.y + b.y};
+}
+template<class T>
+Point2<T> operator-(const Point2<T>& a, const Point2<T>& b) {
+    return {a.x - b.x, a.y - b.y};
+}
+template<class T>
+Point2<T> operator*(double k, const Point2<T>& a) {
+    return {a.x*k, a.y*k};
+}
+template<class T>
+T operator^(const Point2<T>& a, const Point2<T>& b) {
+    return a.x*b.y - b.x*a.y;
+}
+template<class T>
+T operator*(const Point2<T>& a, const Point2<T>& b) {
+    return a.x*b.x + a.y*b.y;
+}
+template<class T>
+double length(const Point2<T>& a) {
+    return sqrt(a*a);
+}
+
+
+
+
+template<class T>
 struct Point {
     T x, y, z;
 };
+template<class T>
+bool operator==(const Point<T>& a, const Point<T>& b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
 template<class T>
 Point<T> operator+(const Point<T>& a, const Point<T>& b) {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
@@ -56,10 +98,7 @@ Point<T> perp(Point<T>& a) {
     return ret;
 }
 
-template<class T>
-bool operator==(const Point<T>& a, const Point<T>& b) {
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
+
 
 
 
@@ -69,7 +108,6 @@ struct Mesh {
     std::vector<Point<double>> vertices;
     std::vector<Triangle> polygons;
 };
-
 bool readMesh(const std::string& filename, Mesh& mesh)
 {
     mesh.vertices.clear();

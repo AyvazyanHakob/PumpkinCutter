@@ -3,6 +3,9 @@
 #include <array>
 #include <cmath>
 #include <algorithm>
+
+#include <opencv2/opencv.hpp>
+
 #include "utils.h"
 
 std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a) {
@@ -50,14 +53,15 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
         bool ABb, BCb, ACb;
         double x;
         ABb = intersect(planeA, planeB, planeC, A, B-A, AxB, x);
-        ABb = ABb && (0 <= x && x <= 1);
+        ABb = ABb && (0 < x && x <= 1);
         BCb = intersect(planeA, planeB, planeC, B, C-B, BxC, x);
-        BCb = BCb && (0 <= x && x <= 1);
+        BCb = BCb && (0 < x && x <= 1);
         ACb = intersect(planeA, planeB, planeC, A, C-A, AxC, x);
         ACb = ACb && (0 <= x && x <= 1);
         std::vector<int> buffer;
         int ind = -1;
-        auto addVertex = [&added, &nexta, &buffer](Point<double> p)->int {
+        auto addVertex = [&added, &nexta, &buffer](Point<double> p)->int
+        {
             int nearest = -1;
             double nearestLength = std::numeric_limits<double>::max();
             for (int ind : added) {
@@ -74,7 +78,8 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
             buffer.push_back((int)nexta.vertices.size()-1);
             return buffer.back();
         };
-        auto emptyBuffer = [&added, &buffer]() {
+        auto emptyBuffer = [&added, &buffer]()
+        {
             for (int x : buffer) {
                 added.push_back(x);
             }
@@ -137,7 +142,8 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
     intersectionPoints = polygonByEdges(intersectionEdges);
 }
 
-void isolateByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC) {
+void isolateByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC)
+{
     Mesh nexta;
     for (Triangle p : a.polygons) {
         Point<double> A = a.vertices[p[0]];
@@ -160,17 +166,17 @@ Mesh visual;
 
 std::vector<Triangle> triangulize(std::vector<int> polygon, const std::vector<Point<double>>& points, Point<double> planeNormal) {
     Point<double> planeOrigin = points[polygon[0]];
-    std::vector<Point<double>> polygonPoints(polygon.size()); // 2d
-    for (int i = 0; i < polygon.size(); i++) {
-        polygonPoints[i] = points[polygon[i]] - planeOrigin;
-    }
+    std::vector<Point2<double>> polygonPoints(polygon.size()); // 2d
     normalize(planeNormal);
     Point<double> base1 = normalized(perp(planeNormal));
     Point<double> base2 = normalized(base1^planeNormal);
-    for (auto& point : polygonPoints)  {
-        point = {base1 * point, base2 *  point, 14.88/*DO NOT FORGET TO CHANGE BEFORE PRODUCTION*/};
+    for (int i = 0; i < polygon.size(); i++) {
+        Point<double> p = points[polygon[i]] - planeOrigin;
+        polygonPoints[i] = {base1 * p, base2 *  p};
     }
-    auto isInCircumcircle = [](Point<double> A, Point<double> B, Point<double> C, Point<double> D) {
+
+    auto isInCircumcircle = [](Point<double> A, Point<double> B, Point<double> C, Point<double> D)
+    {
         std::array<std::array<double, 3>, 3> matrix;
         double difx, dify;
         difx = A.x - D.x;
@@ -187,6 +193,53 @@ std::vector<Triangle> triangulize(std::vector<int> polygon, const std::vector<Po
                              + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
         return determinant > 0;
     };
+
+    double max_x=-1e18, min_x=1e18, max_y=-1e18, min_y=1e18;
+    for (auto&[x, y] : polygonPoints)
+    {
+        max_x = std::max(max_x, x);
+        min_x = std::min(min_x, x);
+        max_y = std::max(max_y, y);
+        min_y = std::min(min_y, y);
+    }
+    max_x += 2;
+    min_x -= 2;
+    max_y += 2;
+    min_y -= 2;
+
+    std::vector<Triangle> ret;
+    // OPENCV PART
+    {
+        cv::Subdiv2D subdiv;
+        subdiv.initDelaunay(cv::Rect(min_x, min_y, max_x-min_x, max_y-min_y));
+        for (auto &[x, y] : polygonPoints) {
+            subdiv.insert(cv::Point2d(x, y));
+        }
+        std::vector<cv::Vec6f> triangles;
+        subdiv.getTriangleList(triangles);
+        auto getIndex = [&polygonPoints](Point2<double> p) {
+            double mindist = std::numeric_limits<double>::max();
+            int mindistind = -1;
+            for (int i = 0; i < polygonPoints.size(); i++) {
+                double len = length(polygonPoints[i] - p);
+                if (len < mindist) {
+                    mindist = len;
+                    mindistind = i;
+                }
+            }
+            return mindistind;
+        };
+        for (cv::Vec6f trig : triangles) {
+            Triangle trigind = {
+                        polygon[getIndex({trig[0], trig[1]})],
+                        polygon[getIndex({trig[2], trig[3]})],
+                        polygon[getIndex({trig[4], trig[5]})]};
+            ret.push_back(trigind);
+        }
+
+    }
+
+    return ret;
 }
 
 void cutByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC, int tp) {
@@ -197,6 +250,8 @@ void cutByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<doubl
     std::cout << "BBB" << std::endl;
     std::vector<Triangle> triangles = triangulize(polygon, a.vertices, (planeB-planeA)^(planeC-planeA));
     for (auto p : triangles) {
+        // std::cout << "ha, karuceg@" << std::endl;
+        std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
         a.polygons.push_back({p[0], p[1], p[2]});
     }
 
@@ -224,7 +279,7 @@ int main() {
     basis1 = scale*basis1;
     basis2 = scale*basis2;
     direction = cos(angle) * cnord * direction;
-    int partcnt = 20;
+    int partcnt = 3;
     std::vector<Point<double>> surface;
     for (int part = 0; part < partcnt; part++) {
         double alpha = 2*PI/partcnt * part;
@@ -242,7 +297,7 @@ int main() {
         cutByPlane(b, u, v, origin, i);
 
         break;
-        if (i == 20) break;
+        //if (i == 1) break;
         continue;
         Mesh plane;
         int ind = (int)plane.vertices.size();
