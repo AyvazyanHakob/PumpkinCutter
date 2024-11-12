@@ -146,44 +146,6 @@ void isolateByPlane(Mesh& a, Point3d planeA, Point3d planeB, Point3d planeC)
     a = nexta;
 }
 
-struct NODE {
-    int val;
-    NODE* next;
-    NODE* prev;
-};
-
-std::vector<Triangle> triangulize(std::vector<int> polygon, const std::vector<Point3<double>>& points, Point3<double> planeNormal) {
-    NODE* start = new NODE{polygon[0], nullptr, nullptr};
-    NODE* cur = start;
-    for (int i = 0; i+1 < polygon.size(); i++) {
-        cur->next = new NODE{polygon[(i+1)%(int)polygon.size()], nullptr, cur};
-        cur = cur->next;
-    }
-    cur->next = start;
-    start->prev = cur;
-    std::vector<Triangle> ret;
-    for (int i = 0; i < 10000; i++) {
-        int p1 = cur->prev->val;
-        int p2 = cur->val;
-        int p3 = cur->next->val;
-        Point3<double> A = points[cur->prev->val];
-        Point3<double> B = points[cur->val];
-        Point3<double> C = points[cur->next->val];
-        if (sideRelativePlane(A-planeNormal, B-planeNormal, C-planeNormal, planeNormal) < 0) {
-            ret.push_back({p1, p2, p3});
-            cur->prev->next = cur->next;
-            cur->next->prev = cur->prev;
-            NODE* tmp = cur->next;
-            delete cur;
-            cur = tmp;
-        } else cur = cur->next;
-        // srand(time(0));
-        // int c = rand()%20000;
-        // for (int i = 0; i < c; i++) cur = cur->next;
-    }
-    return ret;
-}
-
 Mesh visual;
 
 int main() {
@@ -193,7 +155,7 @@ int main() {
     Point3d origin = {-15, -10, -110};
     // drawPoint(visual, origin);
     Point3d direction = {30, 25, 70};
-    int partcnt = 60;
+    int partcnt = 6;
     double angle = PI/6;
 
     normalize(direction);
