@@ -6,9 +6,9 @@
 #include <map>
 #include <set>
 
-#include <opencv2/opencv.hpp>
-
 #include "utils.h"
+
+typedef std::tuple<Point3d, Point3d, Point3d> Plane;
 
 std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a)
 {
@@ -18,8 +18,6 @@ std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a)
         maxind = std::max(maxind, u);
         maxind = std::max(maxind, v);
     }
-    // std::cout << maxind << std::endl;
-    // return {};
     std::vector<std::vector<int>> gp(maxind+1);
     std::vector<bool> vis(maxind+1);
     for (auto[u, v] : a) {
@@ -41,21 +39,19 @@ std::vector<int> polygonByEdges(std::vector<std::pair<int, int>>& a)
     return ret;
 }
 
-void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC,
-                                std::vector<int>& intersectionPoints = NULLREFERENCE<std::vector<int>>)
+void intersectByPlane(Mesh& a, Point3d planeA, Point3d planeB, Point3d planeC,
+                                std::vector<std::pair<int, int>>& intersectionEdges = NULLREFERENCE<std::vector<std::pair<int, int>>>)
 {
     double mnsegpart = 1;
     double mxsegpart = 0;
-    intersectionPoints.clear();
     std::map<std::pair<int, int>, int> intersection;
-
     for (Triangle trig : a.polygons) {
         std::vector<std::pair<int, int>> edges = {{trig[0], trig[1]}, {trig[1], trig[2]}, {trig[2], trig[0]}};
         for (auto&[u, v] : edges) {
             if (intersection.count({u, v})) continue;
-            Point<double> A = a.vertices[u];
-            Point<double> B = a.vertices[v];
-            Point<double> ret;
+            Point3d A = a.vertices[u];
+            Point3d B = a.vertices[v];
+            Point3d ret;
             double x;
             if (intersect(planeA, planeB, planeC, A, B-A, ret, x)) {
                 bool exist = false;
@@ -82,7 +78,6 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
 
     //std::cout << "MIN SEGMENT PART: " << mnsegpart << std::endl;
     //std::cout << "MAX SEGMENT PART: " << mxsegpart << std::endl;
-    std::vector<std::pair<int, int>> edges;
     std::vector<Triangle> newpolygons;
     for (Triangle trig : a.polygons) {
         int intersectionCount = 0;
@@ -100,7 +95,7 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
                     newpolygons.push_back({d1, b, d2});
                     newpolygons.push_back({a, d1, c});
                     newpolygons.push_back({c, d1, d2});
-                    edges.push_back({d1, d2});
+                    intersectionEdges.push_back({d1, d2});
                     break;
                 }
             }
@@ -118,22 +113,21 @@ void intersectByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point
     }
 
     a.polygons = newpolygons;
-
-    intersectionPoints = polygonByEdges(edges);
 }
 
-void isolateByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC)
+void isolateByPlane(Mesh& a, Point3d planeA, Point3d planeB, Point3d planeC)
 {
     Mesh nexta;
-    std::map<Point<double>, int> pointind;
+    std::map<Point3d, int> pointind;
     for (Triangle p : a.polygons) {
-        Point<double> A = a.vertices[p[0]];
-        Point<double> B = a.vertices[p[1]];
-        Point<double> C = a.vertices[p[2]];
-        if (sideRelativePlane(planeA, planeB, planeC, A) >= 0 &&
-            sideRelativePlane(planeA, planeB, planeC, B) >= 0 &&
-            sideRelativePlane(planeA, planeB, planeC, C) >= 0) {
-            int ind = (int)nexta.vertices.size();
+        Point3d A = a.vertices[p[0]];
+        Point3d B = a.vertices[p[1]];
+        Point3d C = a.vertices[p[2]];
+        bool keep = true;
+        keep &= sideRelativePlane(planeA, planeB, planeC, A) >= 0;
+        keep &= sideRelativePlane(planeA, planeB, planeC, B) >= 0;
+        keep &= sideRelativePlane(planeA, planeB, planeC, C) >= 0;
+        if (keep) {
             if (!pointind.count(A)) {
                 pointind[A] = nexta.vertices.size();
                 nexta.vertices.push_back(A);
@@ -154,179 +148,83 @@ void isolateByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<d
 
 Mesh visual;
 
-std::vector<Triangle> triangulize(std::vector<int> polygon, const std::vector<Point<double>>& points, Point<double> planeNormal)
-{
-    Point<double> planeOrigin = points[polygon[0]];
-    std::vector<Point2<double>> polygonPoints(polygon.size()); // 2d
-    normalize(planeNormal);
-    Point<double> base1 = normalized(perp(planeNormal));
-    Point<double> base2 = normalized(base1^planeNormal);
-    for (int i = 0; i < polygon.size(); i++) {
-        Point<double> p = points[polygon[i]] - planeOrigin;
-        polygonPoints[i] = {base1 * p, base2 * p};
-    }
-
-    auto isInCircumcircle = [](Point<double> A, Point<double> B, Point<double> C, Point<double> D)
-    {
-        std::array<std::array<double, 3>, 3> matrix;
-        double difx, dify;
-        difx = A.x - D.x;
-        dify = A.y - D.y;
-        matrix[0] = {difx, dify, difx*difx + dify*dify};
-        difx = B.x - D.x;
-        dify = B.y - D.y;
-        matrix[1] = {difx, dify, difx*difx + dify*dify};
-        difx = C.x - D.x;
-        dify = C.y - D.y;
-        matrix[2] = {difx, dify, difx*difx + dify*dify};
-        double determinant = matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
-                             - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
-                             + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
-        return determinant > 0;
-    };
-
-    double max_x=-1e18, min_x=1e18, max_y=-1e18, min_y=1e18;
-    for (auto&[x, y] : polygonPoints) {
-        max_x = std::max(max_x, x);
-        min_x = std::min(min_x, x);
-        max_y = std::max(max_y, y);
-        min_y = std::min(min_y, y);
-    }
-    max_x += 2;
-    min_x -= 2;
-    max_y += 2;
-    min_y -= 2;
-
-    std::vector<Triangle> ret;
-    // OPENCV delaunay triangulation
-    {
-        cv::Subdiv2D subdiv;
-        subdiv.initDelaunay(cv::Rect(min_x, min_y, max_x-min_x, max_y-min_y));
-        for (auto &[x, y] : polygonPoints) {
-            subdiv.insert(cv::Point2d(x, y));
-        }
-        std::vector<cv::Vec6f> triangles;
-        subdiv.getTriangleList(triangles);
-        auto getIndex = [&polygonPoints](Point2<double> p) {
-            double mindist = std::numeric_limits<double>::max();
-            int mindistind = -1;
-            for (int i = 0; i < polygonPoints.size(); i++) {
-                double len = length(polygonPoints[i] - p);
-                if (len < mindist) {
-                    mindist = len;
-                    mindistind = i;
-                }
-            }
-            return mindistind;
-        };
-        for (cv::Vec6f trig : triangles) {
-            Triangle trigind = {
-                        getIndex({trig[0], trig[1]}),
-                        getIndex({trig[2], trig[3]}),
-                        getIndex({trig[4], trig[5]})};
-            ret.push_back(trigind);
-        }
-    }
-    // triangle validation
-    {
-        std::vector<Triangle> valid;
-        for (Triangle trig : ret) {
-            Point2<double> A = polygonPoints[trig[0]];
-            Point2<double> B = polygonPoints[trig[1]];
-            Point2<double> C = polygonPoints[trig[2]];
-            Point2<double> interior = A + 0.5*(B-A) + 0.25*(C-B);
-            double ret = pointPolygonTest(polygonPoints, interior);
-            if (ret >= 0) valid.push_back(trig);
-        }
-        ret = valid;
-    }
-    for (auto& trig : ret) {
-        trig[0] = polygon[trig[0]];
-        trig[1] = polygon[trig[1]];
-        trig[2] = polygon[trig[2]];
-    }
-    return ret;
-}
-
-void cutByPlane(Mesh& a, Point<double> planeA, Point<double> planeB, Point<double> planeC, int tp)
-{
-    std::cout << "AAA" << std::endl;
-    std::vector<int> polygon;
-    intersectByPlane(a, planeA, planeB, planeC, polygon);
-
-    std::cout << "BBB" << std::endl;
-    std::vector<Triangle> triangles = triangulize(polygon, a.vertices, (planeB-planeA)^(planeC-planeA));
-    for (auto p : triangles) {
-        a.polygons.push_back({p[0], p[1], p[2]});
-    }
-
-    std::cout << "CCC" << std::endl;
-    isolateByPlane(a, planeA, planeB, planeC);
-    std::cout << "Finished" << std::endl;
-}
-
-
-
-
-
-
 int main() {
     Mesh b;
     readMesh("C:\\Users\\c2zi6\\Desktop\\object.obj", b);
 
-
-    Point<double> origin = {-15, -10, -110};
-    Point<double> direction = {30, 25, 70};
-    normalize(direction);
-    double cnord = 60;
+    Point3d origin = {-15, -10, -110};
+    // drawPoint(visual, origin);
+    Point3d direction = {30, 25, 70};
+    int partcnt = 6;
     double angle = PI/6;
-    Point<double> basis1 = perp(direction);
-    Point<double> basis2 = basis1^direction;
+
+    normalize(direction);
+    Point3d basis1 = perp(direction);
+    Point3d basis2 = basis1^direction;
     normalize(basis1);
     normalize(basis2);
-    double scale = sin(angle) * cnord;
-    basis1 = scale*basis1;
-    basis2 = scale*basis2;
-    direction = cos(angle) * cnord * direction;
-    int partcnt = 20;
-    std::vector<Point<double>> surface;
+    double scale = tan(angle);
+    Point3d center = origin + direction;
+    std::vector<Point3d> surface;
     for (int part = 0; part < partcnt; part++) {
         double alpha = 2*PI/partcnt * part;
-        Point<double> p = sin(alpha) * basis1 + cos(alpha) * basis2;
-        surface.push_back(origin + direction + p);
+        surface.push_back(center + scale*(sin(alpha)*basis1 + cos(alpha)*basis2));
     }
 
     for (int i = 0; i < partcnt; i++)
     {
         std::cout << "cutting part " << i << std::endl;
-
-        Point<double> u = surface[i];
-        Point<double> v = surface[(i+1)%partcnt];
-
-        cutByPlane(b, u, v, origin, i);
-        if (i == 3) break;
-        //debugMeshInfo(b);
-        // break;
-        // if (i == 1) break;
-        // continue;
-        // if (i == 0) cutByPlane(b, u, v, origin, i);
-        // else cutByPlaneDEBUG(b, u, v, origin, i);
-
-        // if (i == 1) break;
-        // //break;
-        // continue;
-        // Mesh plane;
-        // int ind = (int)plane.vertices.size();
-        // plane.vertices.push_back(origin);
-        // plane.vertices.push_back(u);
-        // plane.vertices.push_back(v);
-        // plane.polygons.push_back({ind+0, ind+1, ind+2});
-        // visual = combine(visual, plane);
-        // break;
+        Point3d u = surface[i];
+        Point3d v = surface[(i+1)%partcnt];
+        intersectByPlane(b, origin, u, v);
+        isolateByPlane(b, origin, u, v);
     }
 
-    // writeMesh("C:\\Users\\c2zi6\\Desktop\\object2.obj", visual);
-    // return 0;
+    double minDistance = std::numeric_limits<double>::max();
+    for (auto trig : b.polygons) {
+        for (int ind : {trig[0], trig[1], trig[2]}) {
+            Point3d P = b.vertices[ind];
+            double cur = direction * (P - origin);
+            minDistance = std::min(minDistance, cur);
+        }
+    }
+    minDistance *= 0.9;
+
+    std::cout << minDistance << std::endl;
+
+    int startind = b.vertices.size();
+    for (int i = 0; i < partcnt; i++) {
+        b.vertices.push_back(origin + minDistance * (surface[i] - origin));
+    }
+    if ("WE MUST SECURE THE EXISTENCE OF OUR PEOPLE AND A FUTURE FOR WHITE CHILDREN"[14/88]) {
+        std::set<std::pair<int, int>> edges;
+        for (auto trig : b.polygons) {
+            std::vector<std::pair<int, int>> ITERATION_edges = {{trig[0], trig[1]}, {trig[1], trig[2]}, {trig[2], trig[0]}};
+            for (auto&[u, v] : ITERATION_edges) {
+                edges.insert({u, v});
+            }
+        }
+        for (auto&[u, v] : edges) {
+            if (edges.count({v, u})) continue;
+            int plane1 = -1;
+            int plane2 = -1;
+            for (int i = 0; i < partcnt; i++) {
+                Point3d planeA = origin;
+                Point3d planeB = surface[i];
+                Point3d planeC = surface[(i+1)%partcnt];
+                if (sideRelativePlane(planeA, planeB, planeC, b.vertices[u]) == 0) {
+                    plane1 = i;
+                }
+                if (sideRelativePlane(planeA, planeB, planeC, b.vertices[v]) == 0) {
+                    plane2 = i;
+                }
+            }
+            b.polygons.push_back({u, startind + plane1, v});
+            if (plane1 != plane2) {
+                b.polygons.push_back({startind + plane2, v, startind + plane1});
+            }
+        }
+    }
     writeMesh("C:\\Users\\c2zi6\\Desktop\\object2.obj", combine(visual, b));
     return 0;
 }

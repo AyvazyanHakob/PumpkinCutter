@@ -16,10 +16,10 @@ CXX           = cl
 DEFINES       = -DUNICODE -D_UNICODE -DWIN32 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DWIN64 -DQT_QML_DEBUG
 CFLAGS        = -nologo -Zc:wchar_t -FS -Zc:strictStrings -Zi -MDd -utf-8 -W3 -w44456 -w44457 -w44458 /Fddebug\headCutter.vc.pdb $(DEFINES)
 CXXFLAGS      = -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -Zi -MDd -std:c++17 -utf-8 -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -EHsc /Fddebug\headCutter.vc.pdb $(DEFINES)
-INCPATH       = -I..\..\..\headCutter -I. -I..\..\3rdParty\opencv\include -IC:\Qt\6.7.2\msvc2019_64\mkspecs\win32-msvc 
+INCPATH       = -I..\..\..\headCutter -I. -IC:\Qt\6.7.2\msvc2019_64\mkspecs\win32-msvc 
 LINKER        = link
 LFLAGS        = /NOLOGO /DYNAMICBASE /NXCOMPAT /DEBUG /SUBSYSTEM:CONSOLE "/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'"
-LIBS          = /LIBPATH:C:\Users\c2zi6\Documents\headCutter\3rdParty\opencv\x64\vc17\lib C:\Users\c2zi6\Documents\headCutter\3rdParty\opencv\x64\vc17\lib\opencv_world4100d.lib   
+LIBS          =    
 QMAKE         = C:\Qt\6.7.2\msvc2019_64\bin\qmake.exe
 DEL_FILE      = del
 CHK_DIR_EXISTS= if not exist
@@ -53,7 +53,9 @@ OBJECTS_DIR   = debug
 SOURCES       = ..\..\main.cpp 
 OBJECTS       = debug\main.obj
 
-DIST          = .gitignore utils.h ..\..\main.cpp
+DIST          = .gitignore point2.h \
+		point3.h \
+		utils.h ..\..\main.cpp
 QMAKE_TARGET  = headCutter
 DESTDIR        = debug\ #avoid trailing-slash linebreak
 TARGET         = headCutter.exe
@@ -149,120 +151,9 @@ compiler_clean:
 
 ####### Compile
 
-debug\main.obj: ..\..\main.cpp ..\..\3rdParty\opencv\include\opencv2\opencv.hpp \
-		..\..\3rdParty\opencv\include\opencv2\opencv_modules.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cvdef.h \
-		..\..\3rdParty\opencv\include\opencv2\core\version.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\hal\interface.h \
-		..\..\3rdParty\opencv\include\opencv2\core\cv_cpu_dispatch.h \
-		..\..\3rdParty\opencv\include\opencv2\core\cv_cpu_helper.h \
-		..\..\3rdParty\opencv\include\opencv2\core\hal\msa_macros.h \
-		..\..\3rdParty\opencv\include\opencv2\core\fast_math.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\base.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cvstd.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cvstd_wrapper.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\neon_utils.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\vsx_utils.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\check.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\traits.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\matx.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\saturate.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\matx.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\types.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\mat.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\bufferpool.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\mat.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\persistence.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\operations.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cvstd.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utility.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utils\instrumentation.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utils\tls.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\optim.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\ovx.hpp \
-		..\..\3rdParty\opencv\include\opencv2\calib3d.hpp \
-		..\..\3rdParty\opencv\include\opencv2\features2d.hpp \
-		..\..\3rdParty\opencv\include\opencv2\flann\miniflann.hpp \
-		..\..\3rdParty\opencv\include\opencv2\flann\defines.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\config.h \
-		..\..\3rdParty\opencv\include\opencv2\core\affine.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utils\logger.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utils\logger.defines.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\utils\logtag.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\dnn.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\async.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\version.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\dict.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\layer.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\dnn.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\dnn\utils\inference_engine.hpp \
-		..\..\3rdParty\opencv\include\opencv2\flann.hpp \
-		..\..\3rdParty\opencv\include\opencv2\flann\flann_base.hpp \
-		..\..\3rdParty\opencv\include\opencv2\flann\general.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\matrix.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\params.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\any.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\saving.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\nn_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\result_set.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\all_indices.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\kdtree_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\dynamic_bitset.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\dist.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\heap.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\allocator.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\random.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\kdtree_single_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\kmeans_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\logger.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\composite_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\linear_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\hierarchical_clustering_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\lsh_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\lsh_table.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\autotuned_index.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\ground_truth.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\index_testing.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\timer.h \
-		..\..\3rdParty\opencv\include\opencv2\flann\sampling.h \
-		..\..\3rdParty\opencv\include\opencv2\highgui.hpp \
-		..\..\3rdParty\opencv\include\opencv2\imgcodecs.hpp \
-		..\..\3rdParty\opencv\include\opencv2\videoio.hpp \
-		..\..\3rdParty\opencv\include\opencv2\imgproc.hpp \
-		..\..\3rdParty\opencv\include\opencv2\imgproc\segmentation.hpp \
-		..\..\3rdParty\opencv\include\opencv2\ml.hpp \
-		..\..\3rdParty\opencv\include\opencv2\ml\ml.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\aruco_detector.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\aruco_dictionary.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\aruco_board.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\graphical_code_detector.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\detection_based_tracker.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\face.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\charuco_detector.hpp \
-		..\..\3rdParty\opencv\include\opencv2\objdetect\barcode.hpp \
-		..\..\3rdParty\opencv\include\opencv2\photo.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\warpers.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\warpers.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cuda.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cuda_types.hpp \
-		..\..\3rdParty\opencv\include\opencv2\core\cuda.inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\warpers_inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\matchers.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\motion_estimators.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\util.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\util_inl.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\camera.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\exposure_compensate.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\seam_finders.hpp \
-		..\..\3rdParty\opencv\include\opencv2\stitching\detail\blenders.hpp \
-		..\..\3rdParty\opencv\include\opencv2\video.hpp \
-		..\..\3rdParty\opencv\include\opencv2\video\tracking.hpp \
-		..\..\3rdParty\opencv\include\opencv2\video\background_segm.hpp \
-		..\..\utils.h
+debug\main.obj: ..\..\main.cpp ..\..\utils.h \
+		..\..\point2.h \
+		..\..\point3.h
 
 ####### Install
 
